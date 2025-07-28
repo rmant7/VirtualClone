@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Models
+models/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+workspace.xml
+
+# Environment
+venv/
+.env

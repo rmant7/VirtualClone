@@ -1,0 +1,11 @@
+# Create folder and files automatically:
+mkdir WhisperProject
+cd WhisperProject
+@'
+[PASTE .gitignore CONTENT HERE]
+'@ > .gitignore
+
+@'
+[PASTE Internship.py CONTENT HERE]
+'@ > Internship.py
+# Repeat for other files

@@ -1,0 +1,11 @@
+WhisperProject/
+├── .gitignore
+├── Internship.py
+├── README.md
+├── requirements.txt
+└── .idea/
+    ├── .gitignore
+    ├── misc.xml
+    ├── modules.xml
+    ├── vcs.xml
+    └── workspace.xml
