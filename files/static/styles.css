@@ -1,0 +1,93 @@
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f6f9;
+    color: #333;
+    padding: 40px;
+    max-width: 600px;
+    margin: auto;
+}
+
+h1, h2 {
+    text-align: center;
+    color: #2c3e50;
+}
+
+form {
+    margin: 20px 0;
+    display: flex;
+    gap: 10px;
+}
+
+#language-form {
+    align-items: center;
+}
+
+select {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    background-color: #fff;
+    width: 100%;
+}
+
+input[type="text"] {
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+button {
+    padding: 12px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+#selected-language-display {
+    margin-top: 10px;
+    font-style: italic;
+    text-align: center;
+    color: #555;
+}
+
+#chat-container {
+    height: 700px; 
+    overflow-y: auto; /* Scroll bar */
+    border: 1px solid #ccc; /* dlt this if box border needs to be invisible */
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+}
+
+ul li {
+    padding: 10px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #ffffff;
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 20px;
+    }
+
+    button, input[type="text"], select {
+        font-size: 14px;
+    }
+}
+

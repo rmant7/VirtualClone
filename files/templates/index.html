@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>    
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Language dropdown change
+            document.getElementById("language-select").addEventListener("change", function () {
+                $.ajax({
+                    url: '/',
+                    type: 'POST',
+                    data: {
+                        language: this.value
+                    },
+                    success: function (response) {
+                        //document.getElementById('selected-language-display').innerText = 'You selected: ' + response.selected_language;
+                    },
+                    error: function () {
+                        alert("Error selecting language!");
+                    }
+                });
+            });
+
+
+	    // QA form submit
+            document.getElementById("qa-form").addEventListener("submit", function (event) {
+                event.preventDefault();
+                const inputVal = document.querySelector("input[name='user_input']").value;
+
+                fetch("/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: new URLSearchParams({
+                        user_input: inputVal
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const user_message = "<li><strong>You:</strong> " + data.user_input + "</li>";
+                    const bot_message = "<li><strong>Bot:</strong> " + data.answer + "</li><br>";
+
+                    document.querySelector("ul").insertAdjacentHTML("beforeend", user_message + bot_message);
+                    document.querySelector("input[name='user_input']").value = '';
+
+  		    // Auto-scroll to bottom
+ 		    document.getElementById("chat-container").scrollTop = document.getElementById("chat-container").scrollHeight;
+                })
+                .catch(() => {
+                    alert("Error submitting input!");
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <!--  <h1>drop down</h1>  -->
+
+    <!-- Language Selector -->
+    <form id="language-form">
+        <select name="language" id="language-select">
+            <option value="">Select Language</option>
+            {% for code, language in languages.items() %} 
+		<option value="{{ code }}" {% if selected_language == code %}selected{% endif %}>{{ language }}</option>
+
+            {% endfor %}
+        </select>
+    </form>
+
+    <div id="selected-language-display">
+    </div>
+
+    <!-- QA Input form -->
+    <form id="qa-form">
+        <input type="text" name="user_input" placeholder="Type something..." required>
+        <button type="submit">Submit</button>
+    </form>
+
+
+    <!--  <h2>messages[] output</h2>  -->
+    <div id="chat-container">
+        <ul>
+        </ul>
+    </div>
+
+</body>
+</html>
