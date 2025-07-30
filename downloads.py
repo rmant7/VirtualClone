@@ -1,43 +1,57 @@
-import os
 import yt_dlp
-import ssl
-import certifi
-
-ssl._create_default_https_context = ssl.create_default_context(cafile=certifi.where())
-
-ssl._create_default_https_context = ssl._create_unverified_context
-import ssl
-import certifi
-
-ssl._create_default_https_context = ssl.create_default_context(cafile=certifi.where())
-
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
-
-def download_youtube_audio(url, output_dir='downloads'):
-    os.makedirs(output_dir, exist_ok=True)
-
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'quiet': False
-    }
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
-        # Replace audio extension with .mp3 since we extract audio
-        filename = os.path.splitext(filename)[0] + '.mp3'
-    return filename
+import os
+import argparse
 
 
-if __name__ == "__main__":
-    test_url = input("Enter YouTube URL: ")
-    audio_file = download_youtube_audio(test_url)
-    print(f"Audio downloaded to: {audio_file}")
+default_path = "/Users/esraamograbi/Desktop/Projects/downloader script/links.txt"
+
+
+output_directory = "downloads"
+os.makedirs(output_directory, exist_ok=True)
+
+
+parser = argparse.ArgumentParser(description="Download audio from YouTube videos listed in a file.")
+
+parser.add_argument(
+    "input",
+    nargs="?",  
+    default=default_path,
+    help="Path to input file with YouTube links"
+)
+
+parser.add_argument(
+    "--keep-video",
+    action="store_true",
+    default=True,  
+    help="Keep the original downloaded video"
+)
+
+args = parser.parse_args()
+
+
+with open(args.input, "r") as f:
+    links = [line.strip() for line in f if line.strip()]
+
+
+ydl_opts = {
+    'format': 'bestaudio/best',
+    'outtmpl': os.path.join(output_directory, '%(title)s.%(ext)s'),
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }],
+    'keepvideo': args.keep_video 
+}
+
+
+with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    for link in links:
+        try:
+            print(f"\nDownloading: {link}")
+            ydl.download([link])
+        except Exception as e:
+            print(f"Failed to download {link}: {e}")
+
+
 
