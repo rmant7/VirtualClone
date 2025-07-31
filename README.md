@@ -28,5 +28,5 @@ pip install --no-cache-dir torch torchvision torchaudio --index-url https://down
 
 ## Run
 ```
-python flask_app.py
+python run.py
 ```

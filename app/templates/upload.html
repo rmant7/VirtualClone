@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Document{% endblock %}
+
+{% block content %}
+<form method="POST" enctype="multipart/form-data">
+    <input type="file" name="file" required>
+    <button type="submit">Upload</button>
+</form>
+
+{% if filename %}
+    <div id="selected-language-display">
+        ✅ File uploaded: <strong>{{ filename }}</strong>
+    </div>
+{% endif %}
+{% endblock %}

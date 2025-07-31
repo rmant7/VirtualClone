@@ -1,0 +1,8 @@
+/venv
+/uploads/*
+app/__pycache__
+app/routes/__pycache__
+app/controllers/__pycache__
+app/services/__pycache__
+app/templates/__pycache__
+app/constants/__pycache__

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Q&A Chat{% endblock %}
+
+{% block content %}
+
+<!-- Language Selector -->
+<form id="language-form">
+    <select name="language" id="language-select">
+        <option value="">Select Language</option>
+        {% for code, language in languages.items() %}
+            <option value="{{ code }}" {% if selected_language == code %}selected{% endif %}>
+                {{ language }}
+            </option>
+        {% endfor %}
+    </select>
+</form>
+
+<div id="selected-language-display">
+    <!-- Language display will be populated dynamically -->
+</div>
+
+<!-- QA Input form -->
+<form id="qa-form">
+    <input type="text" name="user_input" placeholder="Type something..." required>
+    <button type="submit">Submit</button>
+</form>
+
+<!-- Chat Display -->
+<div id="chat-container">
+    <ul>
+        {% for user_input, answer in messages %}
+            <li><strong>You:</strong> {{ user_input }}</li>
+            <li><strong>Bot:</strong> {{ answer }}</li><br>
+        {% endfor %}
+    </ul>
+</div>
+
+{% endblock %}
