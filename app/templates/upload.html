@@ -3,6 +3,14 @@
 {% block title %}Upload Document{% endblock %}
 
 {% block content %}
+
+{% if allowed_extensions %}
+    <p>🎥 Allowed video formats: 
+        {% for ext in allowed_extensions %}
+            <code>.{{ ext }}</code>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+    </p>
+{% endif %}
 <form method="POST" enctype="multipart/form-data">
     <input type="file" name="file" required>
     <button type="submit">Upload</button>
@@ -13,4 +21,12 @@
         ✅ File uploaded: <strong>{{ filename }}</strong>
     </div>
 {% endif %}
+
+{% if transcript %}
+    <div id="transcript-display">
+        <h3>Transcript:</h3>
+        <p>{{ transcript }}</p>
+    </div>
+{% endif %}
+
 {% endblock %}
