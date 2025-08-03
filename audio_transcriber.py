@@ -1,37 +1,43 @@
 import os
+import yt_dlp
 import whisper
+import os
+os.environ["PATH"] = os.path.expanduser("~/VirtualClone") + ":" + os.environ["PATH"]
 
-DOWNLOADS_DIR = "downloads"
-OUTPUT_DIR = "output"
 
+transcript_dir = "transcripts"
+os.makedirs(transcript_dir, exist_ok=True)
 
 model = whisper.load_model("base")
 
-def transcribe_audio(file_path):
-    print(f"Transcribing {file_path} ...")
-    result = model.transcribe(file_path)
-    return result['text']
 
-def main():
+def download_and_transcribe(video_url):
+    print(f"\nProcessing: {video_url}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': 'temp_audio.%(ext)s',
+        'quiet': True,
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
 
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([video_url])
 
-    files = [f for f in os.listdir(DOWNLOADS_DIR) if f.endswith(".mp3")]
+    print("Audio downloaded. Transcribing...")
+    result = model.transcribe("temp_audio.mp3")
 
-    for audio_file in files:
-        audio_path = os.path.join(DOWNLOADS_DIR, audio_file)
-        transcription = transcribe_audio(audio_path)
+    with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+        info_dict = ydl.extract_info(video_url, download=False)
+        title = info_dict.get('title', 'untitled').replace(" ", "_").replace("/", "_")
 
+    filename = os.path.join(transcript_dir, f"{title}.txt")
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(result["text"])
 
-        txt_file = audio_file.rsplit(".", 1)[0] + ".txt"
-        txt_path = os.path.join(OUTPUT_DIR, txt_file)
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(transcription)
-        print(f"Saved transcription to {txt_path}")
-
-if __name__ == "__main__":
-    main()
-
-
-
+    print(f"✅ Transcription saved: {filename}")
+    os.remove("temp_audio.mp3")
