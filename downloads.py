@@ -1,57 +1,56 @@
-import yt_dlp
+import subprocess
+import sys
 import os
-import argparse
+os.environ["PATH"] = os.path.expanduser("~/VirtualClone") + ":" + os.environ["PATH"]
 
 
-default_path = "/Users/esraamograbi/Desktop/Projects/downloader script/links.txt"
+try:
+    from audio_transcriber import download_and_transcribe
+except ImportError:
+    print("❌ ERROR: Cannot import 'download_and_transcribe' from 'audio_transcriber.py'. Please check the function name and file location.")
+    sys.exit(1)
 
 
-output_directory = "downloads"
-os.makedirs(output_directory, exist_ok=True)
+def get_video_urls_from_channel(channel_url, max_videos=None):
+    print(f"Fetching video URLs from channel: {channel_url}")
+    command = ["yt-dlp", "--flat-playlist", "--get-id", channel_url]
+    if max_videos:
+        command += ["--playlist-end", str(max_videos)]
+
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    video_ids = result.stdout.strip().split('\n')
+
+    video_urls = []
+    for vid in video_ids:
+        vid = vid.strip()
+        if not vid:
+            continue
+
+        if vid.startswith("http://") or vid.startswith("https://"):
+            video_urls.append(vid)
+        else:
+            video_urls.append(f"https://www.youtube.com/watch?v={vid}")
+    return video_urls
 
 
-parser = argparse.ArgumentParser(description="Download audio from YouTube videos listed in a file.")
+def download_from_channel(channel_url, max_videos=None):
+    video_urls = get_video_urls_from_channel(channel_url, max_videos)
+    print(f"\n🎬 Found {len(video_urls)} videos. Starting processing...")
 
-parser.add_argument(
-    "input",
-    nargs="?",  
-    default=default_path,
-    help="Path to input file with YouTube links"
-)
-
-parser.add_argument(
-    "--keep-video",
-    action="store_true",
-    default=True,  
-    help="Keep the original downloaded video"
-)
-
-args = parser.parse_args()
-
-
-with open(args.input, "r") as f:
-    links = [line.strip() for line in f if line.strip()]
-
-
-ydl_opts = {
-    'format': 'bestaudio/best',
-    'outtmpl': os.path.join(output_directory, '%(title)s.%(ext)s'),
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-        'preferredquality': '192',
-    }],
-    'keepvideo': args.keep_video 
-}
-
-
-with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-    for link in links:
+    for url in video_urls:
         try:
-            print(f"\nDownloading: {link}")
-            ydl.download([link])
+            download_and_transcribe(url)
         except Exception as e:
-            print(f"Failed to download {link}: {e}")
+            print(f"❌ Error processing {url}: {e}")
 
 
+if __name__ == "__main__":
+    channel_link = input("Enter YouTube channel URL: ")
+    limit = input("Limit number of videos? Leave blank for all: ")
 
+    try:
+        max_videos = int(limit) if limit else None
+    except ValueError:
+        max_videos = None
+
+    download_from_channel(channel_link, max_videos)
