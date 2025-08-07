@@ -25,6 +25,11 @@ document.addEventListener("DOMContentLoaded", function () {
     ?.addEventListener("submit", function (event) {
       event.preventDefault();
       const inputVal = document.querySelector("input[name='user_input']").value;
+      const loader = document.getElementById("loader");
+
+      if(loader) {
+        loader.style.display = "block";
+      }
 
       fetch("/", {
         method: "POST",
@@ -37,6 +42,11 @@ document.addEventListener("DOMContentLoaded", function () {
       })
         .then((response) => response.json())
         .then((data) => {
+          
+          if (loader) {
+            loader.style.display = "none";
+          }
+          
           const user_message =
             "<li><strong>You:</strong> " + data.user_input + "</li>";
           const bot_message =

@@ -1,108 +1,148 @@
-
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f4f6f9;
-    color: #333;
-    padding: 40px;
-    max-width: 600px;
-    margin: auto;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f6f9;
+  color: #333;
+  padding: 40px;
+  max-width: 600px;
+  margin: auto;
 }
 
-h1, h2 {
-    text-align: center;
-    color: #2c3e50;
+h1,
+h2 {
+  text-align: center;
+  color: #2c3e50;
 }
 
 form {
-    margin: 20px 0;
-    display: flex;
-    gap: 10px;
+  margin: 20px 0;
+  display: flex;
+  gap: 10px;
 }
 
 #language-form {
-    align-items: center;
+  align-items: center;
 }
 
 select {
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-    background-color: #fff;
-    width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  background-color: #fff;
+  width: 100%;
 }
 
 input[type="text"] {
-    padding: 12px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-    width: 100%;
-    box-sizing: border-box;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 button {
-    padding: 12px;
-    background-color: #3498db;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
+  padding: 12px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
 button:hover {
-    background-color: #2980b9;
+  background-color: #2980b9;
 }
 
 #selected-language-display {
-    margin-top: 10px;
-    font-style: italic;
-    text-align: center;
-    color: #555;
+  margin-top: 10px;
+  font-style: italic;
+  text-align: center;
+  color: #555;
 }
 
 #chat-container {
-    height: 700px; 
-    overflow-y: auto; /* Scroll bar */
-    border: 1px solid #ccc; /* dlt this if box border needs to be invisible */
+  height: 700px;
+  overflow-y: auto; /* Scroll bar */
+  border: 1px solid #ccc; /* dlt this if box border needs to be invisible */
 }
 
 ul {
-    list-style: none;
-    padding: 0;
-    margin-top: 20px;
+  list-style: none;
+  padding: 0;
+  margin-top: 20px;
 }
 
 ul li {
-    padding: 10px;
-    border-bottom: 1px solid #e0e0e0;
-    background-color: #ffffff;
+  padding: 10px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #ffffff;
 }
 
 @media (max-width: 600px) {
-    body {
-        padding: 20px;
-    }
+  body {
+    padding: 20px;
+  }
 
-    button, input[type="text"], select {
-        font-size: 14px;
-    }
+  button,
+  input[type="text"],
+  select {
+    font-size: 14px;
+  }
 }
 
 form {
-    margin: 20px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 input[type="file"] {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 16px;
-    background-color: #fff;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 16px;
+  background-color: #fff;
 }
 
+.loader_container {
+  margin-top: 15px;
+  text-align: center;
+  z-index: 10000;
+  position: absolute;
+  background-color: #fff;
+  width: 53%;
+  height: 100%;
+  top: 25px;
+  opacity: 0.8;
+}
+
+.loader_wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spinner {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

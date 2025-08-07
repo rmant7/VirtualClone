@@ -12,6 +12,7 @@
       href="{{ url_for('static', filename='styles.css') }}"
     />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='js/general.js') }}"></script>
     <script src="{{ url_for('static', filename='js/bot.js') }}"></script>
 
     <!-- <script>
@@ -77,6 +78,16 @@
     </script> -->
   </head>
   <body>
+    <div
+      id="loader"
+      style="display: none; margin-top: 15px; text-align: center"
+      class="loader_container"
+    >
+      <div class="loader_wrapper">
+        <div class="spinner"></div>
+        <p>Processing, please wait...</p>
+      </div>
+    </div>
     <header>
       <nav
         style="
