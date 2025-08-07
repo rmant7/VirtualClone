@@ -1,9 +1,11 @@
-import whisper
+#import whisper
 import os
 import subprocess
 import json
+from faster_whisper import WhisperModel
 
-model = whisper.load_model('base')
+#model = whisper.load_model('base')
+model = WhisperModel("tiny")
 
 def extract_audio(video_path, audio_path):
     try:
@@ -25,8 +27,10 @@ def transcribe_audio(audio_path):
         if not os.path.exists(audio_path) or not is_valid_audio(audio_path):
             raise Exception(f"Invalid audio file: {audio_path}")
         
-        result = model.transcribe(audio_path)
-        text = result['text']
+        segments, info = model.transcribe(audio_path)
+        text = " ".join([segment.text for segment in segments if segment.text.strip()])
+        #result = model.transcribe(audio_path)
+        #text = result['text']
 
         BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
         DATA_DIR = os.path.join(BASE_DIR, "data")
