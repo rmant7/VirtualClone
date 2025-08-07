@@ -1,8 +1,9 @@
-from sqlalchemy import text
 import whisper
 import os
 import subprocess
 import json
+
+model = whisper.load_model('base')
 
 def extract_audio(video_path, audio_path):
     try:
@@ -21,7 +22,9 @@ def extract_audio(video_path, audio_path):
 
 def transcribe_audio(audio_path):
     try:
-        model = whisper.load_model('base')
+        if not os.path.exists(audio_path) or not is_valid_audio(audio_path):
+            raise Exception(f"Invalid audio file: {audio_path}")
+        
         result = model.transcribe(audio_path)
         text = result['text']
 
@@ -37,4 +40,19 @@ def transcribe_audio(audio_path):
     except Exception as e:
         print(f"Error transcribing audio: {e}")
         return None
+    
+
+def is_valid_audio(audio_path):
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        duration = float(result.stdout.strip())
+        return duration > 0.5  # skip files shorter than 0.5s
+    except Exception:
+        return False
 

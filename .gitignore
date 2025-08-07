@@ -1,6 +1,7 @@
 /venv
 /uploads/*
 /data/*
+/downloads/*
 app/__pycache__
 app/routes/__pycache__
 app/controllers/__pycache__

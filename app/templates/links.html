@@ -1,0 +1,71 @@
+{% extends 'base.html' %} {% block title %}Q&A Links{% endblock %} {% block
+content %}
+
+<!-- QA Input link form -->
+<form id="qa_links_form" method="post">
+  <div style="margin: 15px 0">
+    <label>
+      <input
+        type="radio"
+        name="link_type"
+        value="single"
+        checked
+        onchange="toggleInput()"
+      />
+      🔗 Single Link
+    </label>
+    &nbsp;
+    <label>
+      <input
+        type="radio"
+        name="link_type"
+        value="batch"
+        onchange="toggleInput()"
+      />
+      📦 Batch of Links
+    </label>
+    &nbsp;
+    <label>
+      <input
+        type="radio"
+        name="link_type"
+        value="playlist"
+        onchange="toggleInput()"
+      />
+      📺 Playlist Link
+    </label>
+  </div>
+  <input
+    type="text"
+    name="input_link"
+    id="single_input"
+    placeholder="Enter a youtube link https://www.youtube.com/watch?v=000000"
+    required
+  />
+  <!-- Textarea for batch -->
+  <div id="batch_input_wrapper" style="display: none; margin-top: 10px">
+    <textarea
+      name="batch_links"
+      id="batch_links"
+      rows="5"
+      placeholder="Enter multiple YouTube links, one per line"
+      style="width: 100%"
+    ></textarea>
+  </div>
+  <button type="submit">Submit</button>
+</form>
+
+{% if transcript %}
+<div id="transcript-display">
+  <h3>Transcript:</h3>
+  <p>{{ transcript }}</p>
+</div>
+{% endif %} {% if error %}
+<div class="error">
+  <p>Error: {{ error }}</p>
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/links.js') }}"></script>
+
+{% endblock %}

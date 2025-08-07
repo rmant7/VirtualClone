@@ -1,6 +1,7 @@
 from flask import Flask
 from app.routes.document_routes import upload_bp
 from app.routes.main_routes import main_bp
+from app.routes.links_routes import links_bp
 from app.config import Config
 
 def create_app():
@@ -14,5 +15,6 @@ def create_app():
 
     app.register_blueprint(upload_bp, url_prefix="/upload")
     app.register_blueprint(main_bp)
+    app.register_blueprint(links_bp, url_prefix="/links")
 
     return app
