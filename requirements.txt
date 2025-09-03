@@ -1,0 +1,7 @@
+numpy==1.25.2
+sounddevice==0.4.7
+faster-whisper==0.9.1
+ctranslate2==3.25.1
+torch==2.1.0
+
+
