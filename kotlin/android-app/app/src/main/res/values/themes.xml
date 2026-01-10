@@ -1,0 +1,6 @@
+﻿<resources>
+    <style name="Theme.VirtualClone" parent="android:Theme.Material.Light.NoActionBar">
+<!--        &lt;!&ndash; İstersen özelleştirmeler &ndash;&gt;-->
+<!--        <item name="android:statusBarColor">@android:color/transparent</item>-->
+    </style>
+</resources>
