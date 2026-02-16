@@ -11,5 +11,22 @@ sealed class AppRoutes(val route: String) {
     }
 
     object Chat : AppRoutes("chat")
+    object Home : AppRoutes("home")
     object Documents : AppRoutes("documents")
+    object MediaPipeTasks : AppRoutes("mediapipe_tasks")
+    object MediaPipeRunner : AppRoutes("mediapipe_runner/{taskId}") {
+        fun create(taskId: String) = "mediapipe_runner/$taskId"
+    }
+    object LlmTasks : AppRoutes("llm_tasks")
+    object LlmRunner : AppRoutes("llm_runner/{taskId}") {
+        fun create(taskId: String) = "llm_runner/$taskId"
+    }
+    object ModelSettings : AppRoutes("model_settings")
+
+    // ── New Feature Routes ──
+    object AskImage : AppRoutes("ask_image")
+    object AudioScribe : AppRoutes("audio_scribe")
+    object PromptLab : AppRoutes("prompt_lab")
+    object TinyGarden : AppRoutes("tiny_garden")
+    object MobileActions : AppRoutes("mobile_actions")
 }

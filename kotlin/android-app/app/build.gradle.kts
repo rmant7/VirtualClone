@@ -58,12 +58,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlin {
-        jvmToolchain(17)
+        jvmToolchain(21)
     }
 
     buildFeatures {
@@ -136,9 +136,13 @@ dependencies {
     implementation(project(":data:pdf"))
     implementation(project(":ml:onnx"))
     implementation(project(":ml:gemma"))
+    implementation(project(":ml:mediapipe"))
     implementation(project(":feature:chat"))
     implementation(project(":feature:docs"))
     implementation(project(":feature:onboarding"))
+    implementation(project(":feature:mediapipe"))
+    implementation(project(":data:huggingface"))
+    implementation(project(":feature:llm"))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
