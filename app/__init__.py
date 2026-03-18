@@ -7,6 +7,8 @@ from app.routes.main_routes import main_bp
 from app.routes.links_routes import links_bp
 from app.routes.api_routes import api_bp
 from app.config import Config
+from app.routes.whisper_links import whisper_links
+
 
 def setup_logging(app):
     """Configure application logging"""
@@ -65,6 +67,8 @@ def create_app():
     app.register_blueprint(main_bp)
     app.register_blueprint(links_bp, url_prefix="/links")
     app.register_blueprint(api_bp, url_prefix="/api/v1")
+    app.register_blueprint(whisper_links)
+    
 
     app.logger.info(f"Registered blueprints: {list(app.blueprints.keys())}")
 

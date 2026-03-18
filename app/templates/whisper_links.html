@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhisperTube - YouTube Transcription</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #ff4444;
+            font-size: 2rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+        
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .card h2 {
+            font-size: 1rem;
+            color: #ccc;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        textarea {
+            width: 100%;
+            background: #0f0f0f;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 14px;
+            padding: 12px;
+            resize: vertical;
+            min-height: 120px;
+            font-family: monospace;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        textarea:focus { border-color: #ff4444; }
+        
+        textarea::placeholder { color: #555; }
+        
+        .hint {
+            color: #666;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        
+        .btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 28px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover { background: #cc3333; }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { background: #444; cursor: not-allowed; }
+        
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .status.loading {
+            background: #1a2a1a;
+            border: 1px solid #2d4a2d;
+            color: #4caf50;
+            display: block;
+        }
+        
+        .status.error {
+            background: #2a1a1a;
+            border: 1px solid #4a2d2d;
+            color: #f44336;
+            display: block;
+        }
+        
+        .results { margin-top: 20px; }
+        
+        .result-item {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        
+        .result-item.success { border-left: 4px solid #4caf50; }
+        .result-item.failed { border-left: 4px solid #f44336; }
+        
+        .result-title {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+            font-size: 15px;
+        }
+        
+        .result-url {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 12px;
+            word-break: break-all;
+        }
+        
+        .transcription-text {
+            background: #0f0f0f;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 14px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #ddd;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .copy-btn {
+            background: #333;
+            color: #ccc;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        
+        .copy-btn:hover { background: #444; color: #fff; }
+        
+        .error-msg {
+            color: #f44336;
+            font-size: 13px;
+        }
+        
+        .summary {
+            background: #1a2a1a;
+            border: 1px solid #2d4a2d;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            color: #4caf50;
+            font-size: 14px;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #4caf50;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ WhisperTube</h1>
+        <p class="subtitle">Transcribe YouTube videos on-the-fly — no downloading required</p>
+
+        <div class="card">
+            <h2>YouTube Links</h2>
+            <textarea 
+                id="urlInput" 
+                placeholder="https://youtube.com/watch?v=...&#10;https://youtu.be/...&#10;https://youtube.com/watch?v=...&#10;&#10;Enter one URL per line"
+            ></textarea>
+            <p class="hint">💡 Enter one YouTube URL per line. Supports regular videos, Shorts, and shared links.</p>
+            
+            <button class="btn" id="transcribeBtn" onclick="transcribeLinks()">
+                <span>🎯</span> Transcribe All
+            </button>
+            
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        async function transcribeLinks() {
+            const input = document.getElementById('urlInput').value.trim();
+            const btn = document.getElementById('transcribeBtn');
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+
+            if (!input) {
+                showStatus('Please enter at least one YouTube URL', 'error');
+                return;
+            }
+
+            const urls = input.split('\n')
+                .map(u => u.trim())
+                .filter(u => u.length > 0);
+
+            if (urls.length === 0) {
+                showStatus('No valid URLs found', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Transcribing...';
+            results.innerHTML = '';
+            showStatus(
+                `⏳ Processing ${urls.length} video(s)... This may take 1-3 minutes per video.`,
+                'loading'
+            );
+
+            try {
+                const response = await fetch('/links/transcribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls: urls })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showStatus('Error: ' + data.error, 'error');
+                    return;
+                }
+
+                status.style.display = 'none';
+                displayResults(data);
+
+            } catch (err) {
+                showStatus('Network error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🎯</span> Transcribe All';
+            }
+        }
+
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            
+            results.innerHTML = `
+                <div class="summary">
+                    ✅ Completed: ${data.successful}/${data.total} videos transcribed successfully
+                </div>
+            `;
+
+            data.results.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = `result-item ${item.success ? 'success' : 'failed'}`;
+                
+                if (item.success) {
+                    div.innerHTML = `
+                        <div class="result-title">
+                            ${item.title || 'Video ' + (index + 1)}
+                        </div>
+                        <div class="result-url">${item.url}</div>
+                        <div class="transcription-text" id="text-${index}">
+                            ${escapeHtml(item.transcription)}
+                        </div>
+                        <button class="copy-btn" onclick="copyText(${index})">
+                            📋 Copy Transcription
+                        </button>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <div class="result-title">❌ Failed</div>
+                        <div class="result-url">${item.url}</div>
+                        <div class="error-msg">${item.error || 'Unknown error'}</div>
+                    `;
+                }
+                
+                results.appendChild(div);
+            });
+        }
+
+        function copyText(index) {
+            const text = document.getElementById(`text-${index}`).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => btn.textContent = '📋 Copy Transcription', 2000);
+            });
+        }
+
+        function showStatus(msg, type) {
+            const status = document.getElementById('status');
+            status.textContent = msg;
+            status.className = 'status ' + type;
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Allow Ctrl+Enter to submit
+        document.getElementById('urlInput').addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') transcribeLinks();
+        });
+    </script>
+</body>
+</html>
