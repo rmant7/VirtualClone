@@ -92,7 +92,33 @@ object LLMModelsCatalog {
             defaultTopP = 1.0f,
             preferredBackend = "CPU",
             thinking = false
-        )
+        ),
+
+        LLMModel(
+    id = "GEMMA3_1B_IT",
+    path = "/data/local/tmp/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task",
+    url = "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task",
+    licenseUrl = "https://ai.google.dev/gemma/terms",
+    needsAuth = false,
+    defaultTemperature = 0.9f,
+    defaultTopK = 64,
+    defaultTopP = 1.0f,
+    preferredBackend = "CPU",
+    thinking = false
+),
+
+LLMModel(
+    id = "GEMMA3_4B_IT",
+    path = "/data/local/tmp/Gemma3-4B-IT_multi-prefill-seq_q4_ekv2048.task",
+    url = "https://huggingface.co/litert-community/Gemma3-4B-IT/resolve/main/Gemma3-4B-IT_multi-prefill-seq_q4_ekv2048.task",
+    licenseUrl = "https://ai.google.dev/gemma/terms",
+    needsAuth = false,
+    defaultTemperature = 0.9f,
+    defaultTopK = 64,
+    defaultTopP = 1.0f,
+    preferredBackend = "GPU",
+    thinking = false
+)
     )
 
     fun find(modelId: String): LLMModel =
