@@ -104,7 +104,8 @@ object LLMModelsCatalog {
     defaultTopK = 64,
     defaultTopP = 1.0f,
     preferredBackend = "CPU",
-    thinking = false
+    thinking = false,
+    inferenceEngine = InferenceEngine.GEMMA
 ),
 
 LLMModel(
@@ -117,7 +118,8 @@ LLMModel(
     defaultTopK = 64,
     defaultTopP = 1.0f,
     preferredBackend = "GPU",
-    thinking = false
+    thinking = false,
+    inferenceEngine = InferenceEngine.GEMMA
 )
     )
 

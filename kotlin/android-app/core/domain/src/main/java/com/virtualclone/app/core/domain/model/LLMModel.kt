@@ -10,5 +10,6 @@ data class LLMModel(
     val defaultTopK: Int,
     val defaultTopP: Float,
     val preferredBackend: String?, // e.g. "CPU", "GPU", "NNAPI"
-    val thinking: Boolean
+    val thinking: Boolean,
+    val inferenceEngine: InferenceEngine = InferenceEngine.MEDIA_PIPE 
 )
