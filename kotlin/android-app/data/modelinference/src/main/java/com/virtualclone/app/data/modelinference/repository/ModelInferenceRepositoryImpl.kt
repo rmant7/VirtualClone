@@ -114,10 +114,21 @@ Logger.i("Model closed", tag)
     override suspend fun resetSession(): Result<Unit> =
         withContext(ioDispatcher) {
             try {
-                llmInferenceSession?.close()
-                currentModel?.let { createSession(it) }
-
-                Logger.i("Session reset", tag)
+             when (currentModel?.inferenceEngine) {
+    InferenceEngine.GEMMA -> {
+        val ok = gemmaLlm.resetSession(
+            temperature = currentModel!!.defaultTemperature,
+            topK = currentModel!!.defaultTopK,
+            topP = currentModel!!.defaultTopP
+        )
+        if (!ok) throw ModelSessionCreateFailException()
+    }
+    else -> {
+        llmInferenceSession?.close()
+        currentModel?.let { createSession(it) }
+    }
+}
+Logger.i("Session reset", tag)
                 Result.Success(Unit)
 
             } catch (e: Exception) {
