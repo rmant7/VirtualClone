@@ -68,8 +68,24 @@ class ModelInferenceDataRepositoryImpl @Inject constructor(
                 }
 
                 currentModel = model
-                createEngine(model)
-                createSession(model)
+
+when (model.inferenceEngine) {
+    InferenceEngine.GEMMA -> {
+        closeMediaPipe()
+        val ok = gemmaLlm.initialize(
+            modelFile = file,
+            temperature = model.defaultTemperature,
+            topK = model.defaultTopK,
+            topP = model.defaultTopP
+        )
+        if (!ok) throw ModelLoadFailException()
+    }
+    InferenceEngine.MEDIA_PIPE -> {
+        gemmaLlm.close()
+        createEngine(model)
+        createSession(model)
+    }
+}
 
                 Logger.i("Model initialized successfully: $modelId", tag)
                 Result.Success(Unit)
