@@ -99,13 +99,10 @@ when (model.inferenceEngine) {
     override suspend fun closeModel(): Result<Unit> =
         withContext(ioDispatcher) {
             try {
-                llmInferenceSession?.close()
-                llmInferenceSession = null
-
-                llmInference?.close()
-                llmInference = null
-
-                Logger.i("Model closed", tag)
+               closeMediaPipe()
+gemmaLlm.close()
+currentModel = null
+Logger.i("Model closed", tag)
                 Result.Success(Unit)
 
             } catch (e: Exception) {
