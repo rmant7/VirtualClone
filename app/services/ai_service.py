@@ -58,7 +58,7 @@ class AIService:
             logger.info("Loading QA model...")
             device = 0 if (torch is not None and hasattr(torch, "cuda") and torch.cuda.is_available()) else -1
             self._qa_pipeline = pipeline(
-                "question-answering",
+                "document-question-answering",
                 model=Config.AI_MODEL_QA,
                 device=device,
             )
