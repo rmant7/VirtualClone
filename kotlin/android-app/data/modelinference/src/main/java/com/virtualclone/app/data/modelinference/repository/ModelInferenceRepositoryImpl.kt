@@ -27,6 +27,8 @@ import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.max
+import com.virtualclone.app.core.domain.model.InferenceEngine
+import com.virtualclone.app.ml.llm.impl.GemmaLlm
 
 @Singleton
 class ModelInferenceDataRepositoryImpl @Inject constructor(
@@ -41,6 +43,7 @@ class ModelInferenceDataRepositoryImpl @Inject constructor(
     private var llmInference: LlmInference? = null
     private var llmInferenceSession: LlmInferenceSession? = null
     private var currentModel: LLMModel? = null
+    private val gemmaLlm: GemmaLlm = GemmaLlm(context)
 
     companion object {
         private const val MAX_TOKENS = 1024
