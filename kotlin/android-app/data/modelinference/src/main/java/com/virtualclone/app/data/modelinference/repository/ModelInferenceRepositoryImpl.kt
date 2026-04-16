@@ -216,10 +216,15 @@ Logger.i("Session reset", tag)
         prompt: String,
         listener: ProgressListener<String>
     ): ListenableFuture<String> {
-        val session =
-            llmInferenceSession ?: throw IllegalStateException("Session not initialized")
+        return when (currentModel?.inferenceEngine) {
+    InferenceEngine.GEMMA -> gemmaLlm.generateResponseAsync(prompt, listener)
+    else -> {
+        val session = llmInferenceSession
+            ?: throw IllegalStateException("Session not initialized")
         session.addQueryChunk(prompt)
-        return session.generateResponseAsync(listener)
+        session.generateResponseAsync(listener)
+    }
+}
     }
 
     override fun estimateTokensRemaining(
