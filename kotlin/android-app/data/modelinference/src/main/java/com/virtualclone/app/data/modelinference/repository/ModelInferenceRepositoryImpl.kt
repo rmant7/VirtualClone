@@ -267,4 +267,10 @@ Logger.i("Session reset", tag)
             throw ModelSessionCreateFailException()
         }
     }
+    private fun closeMediaPipe() {
+    llmInferenceSession?.close()
+    llmInferenceSession = null
+    llmInference?.close()
+    llmInference = null
+    }
 }
