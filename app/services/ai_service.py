@@ -1,8 +1,8 @@
-from transformers import pipeline
+from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 try:
-    import torch  
+    import torch
     _TORCH_AVAILABLE = True
-except Exception: 
+except Exception:
     torch = None
     _TORCH_AVAILABLE = False
 import random
@@ -30,11 +30,13 @@ class LRUCache(OrderedDict):
             oldest = next(iter(self))
             del self[oldest]
 
+
 class AIService:
     def __init__(self, cache_size=100):
         """Initialize AI service with lazy model loading"""
         self._translate_pipe = None
-        self._qa_pipeline = None
+        self._qa_tokenizer = None
+        self._qa_model = None
         self.response_cache = LRUCache(maxsize=cache_size)
         self.conversation_patterns = {}
         logger.info("AI Service initialized (models will load on first use)")
@@ -43,6 +45,7 @@ class AIService:
     def translate_pipe(self):
         """Lazy load translation pipeline"""
         if self._translate_pipe is None:
+            from transformers import pipeline
             logger.info("Loading translation model...")
             self._translate_pipe = pipeline(
                 "translation",
@@ -51,19 +54,42 @@ class AIService:
             logger.info("Translation model loaded")
         return self._translate_pipe
 
-    @property
-    def qa_pipeline(self):
-        """Lazy load QA pipeline"""
-        if self._qa_pipeline is None:
+    def _load_qa_model(self):
+        """Lazy load QA model and tokenizer"""
+        if self._qa_model is None:
             logger.info("Loading QA model...")
-            device = 0 if (torch is not None and hasattr(torch, "cuda") and torch.cuda.is_available()) else -1
-            self._qa_pipeline = pipeline(
-                "document-question-answering",
-                model=Config.AI_MODEL_QA,
-                device=device,
-            )
+            self._qa_tokenizer = AutoTokenizer.from_pretrained(Config.AI_MODEL_QA)
+            self._qa_model = AutoModelForQuestionAnswering.from_pretrained(Config.AI_MODEL_QA)
             logger.info("QA model loaded")
-        return self._qa_pipeline
+
+    def _run_qa(self, question, context):
+        """Run QA directly using model and tokenizer"""
+        self._load_qa_model()
+        try:
+            inputs = self._qa_tokenizer(
+                question,
+                context,
+                return_tensors="pt",
+                truncation=True,
+                max_length=512
+            )
+            if torch is not None:
+                with torch.no_grad():
+                    outputs = self._qa_model(**inputs)
+            else:
+                outputs = self._qa_model(**inputs)
+
+            start = outputs.start_logits.argmax()
+            end = outputs.end_logits.argmax() + 1
+            answer = self._qa_tokenizer.convert_tokens_to_string(
+                self._qa_tokenizer.convert_ids_to_tokens(
+                    inputs["input_ids"][0][start:end]
+                )
+            )
+            return answer.strip() or "I'm having trouble finding an answer to that."
+        except Exception as e:
+            logger.error(f"QA error: {e}")
+            return "I'm having trouble processing that question."
 
     def translate(self, text, src_lang, tgt_lang):
         """Translate text from source to target language"""
@@ -72,22 +98,12 @@ class AIService:
             return result[0]['translation_text']
         except Exception as e:
             logger.error(f"Translation error: {e}")
-            return text  # Return original text on error
+            return text
 
     def answer_question(self, question, context):
         """Answer question based on context"""
-        try:
-            result = self.qa_pipeline(question=question, context=context)
-            if isinstance(result, dict):
-                return result['answer']
-            elif isinstance(result, list) and len(result) > 0:
-                return result[0]['answer']
-            else:
-                return "I'm having trouble processing that question."
-        except Exception as e:
-            logger.error(f"QA error: {e}")
-            return "I'm having trouble processing that question."
-    
+        return self._run_qa(question, context)
+
     def answer_question_with_context(self, question, base_context, conversation_history=None):
         """
         Enhanced answer function that includes conversation history and response diversity.
@@ -107,30 +123,19 @@ class AIService:
             return self._generate_diverse_response(question, enhanced_context, question_hash)
 
         try:
-            result = self.qa_pipeline(
-                question=question,
-                context=enhanced_context,
-                top_k=Config.AI_QA_TOP_K_PRIMARY,
-                max_answer_len=Config.AI_MAX_ANSWER_LEN,
-            )
+            response = self._run_qa(question, enhanced_context)
 
-            response = self._select_diverse_response(result, question, question_hash)
+            if question_hash not in self.response_cache:
+                self.response_cache[question_hash] = []
+            self.response_cache[question_hash].append(response)
+
             return response
         except Exception as e:
             logger.error(f"Error in QA pipeline: {e}")
             return "I apologize, but I'm having trouble processing your question right now."
-    
+
     def _build_enhanced_context(self, base_context, conversation_history):
-        """
-        Build enhanced context by combining base context with recent conversation.
-
-        Args:
-            base_context: The base context string
-            conversation_history: List of (question, answer) tuples
-
-        Returns:
-            str: Enhanced context with conversation history
-        """
+        """Build enhanced context by combining base context with recent conversation."""
         if not conversation_history:
             return base_context
 
@@ -141,54 +146,27 @@ class AIService:
         ])
 
         return f"{base_context}\n\nRecent Conversation Context:\n{conversation_context}"
-    
+
     def _get_question_hash(self, question):
-        """
-        Create a hash for the question to detect similar questions.
-
-        Args:
-            question: The question string to hash
-
-        Returns:
-            str: MD5 hash of the normalized question
-        """
+        """Create a hash for the question to detect similar questions."""
         normalized = question.lower().strip()
         return hashlib.md5(normalized.encode()).hexdigest()
-    
+
     def _is_repetitive_question(self, question, conversation_history):
-        """
-        Check if the current question is repetitive based on recent conversation.
-
-        Args:
-            question: The current question
-            conversation_history: List of (question, answer) tuples
-
-        Returns:
-            bool: True if question is repetitive, False otherwise
-        """
+        """Check if the current question is repetitive based on recent conversation."""
         if not conversation_history:
             return False
 
         recent_questions = [q for q, a in conversation_history[-Config.REPETITION_HISTORY_WINDOW:]]
-
         question_lower = question.lower()
         for recent_q in recent_questions:
             if self._calculate_similarity(question_lower, recent_q.lower()) > Config.REPETITION_SIMILARITY_THRESHOLD:
                 return True
 
         return False
-    
+
     def _calculate_similarity(self, text1, text2):
-        """
-        Calculate Jaccard similarity between two texts based on common words.
-
-        Args:
-            text1: First text string
-            text2: Second text string
-
-        Returns:
-            float: Similarity score between 0 and 1
-        """
+        """Calculate Jaccard similarity between two texts based on common words."""
         words1 = set(text1.split())
         words2 = set(text2.split())
 
@@ -199,43 +177,16 @@ class AIService:
         union = words1.union(words2)
 
         return len(intersection) / len(union)
-    
+
     def _generate_diverse_response(self, question, context, question_hash):
-        """
-        Generate a diverse response for repetitive questions.
-
-        Args:
-            question: The question string
-            context: The context for answering
-            question_hash: MD5 hash of the question
-
-        Returns:
-            str: A diverse response different from previous ones
-        """
+        """Generate a diverse response for repetitive questions."""
         if question_hash in self.response_cache:
             cached_responses = self.response_cache[question_hash]
             if len(cached_responses) > 1:
                 return random.choice([r for r in cached_responses if r != cached_responses[-1]])
 
         try:
-            result = self.qa_pipeline(
-                question=question,
-                context=context,
-                top_k=Config.AI_QA_TOP_K_DIVERSE,
-                max_answer_len=Config.AI_MAX_ANSWER_LEN,
-            )
-
-            if isinstance(result, list):
-                slice_end = min(len(result), 3)
-                response = random.choice(result[:slice_end])['answer']
-            else:
-                result_list = list(result) if hasattr(result, '__iter__') and not isinstance(result, dict) else result
-                if isinstance(result_list, list) and len(result_list) > 0:
-                    response = result_list[0]['answer']
-                elif isinstance(result_list, dict):
-                    response = result_list['answer']
-                else:
-                    response = "I understand you're asking about this topic."
+            response = self._run_qa(question, context)
 
             if question_hash not in self.response_cache:
                 self.response_cache[question_hash] = []
@@ -244,49 +195,18 @@ class AIService:
         except Exception as e:
             logger.error(f"Error generating diverse response: {e}")
             return "I understand you're asking about this topic."
-    
-    def _select_diverse_response(self, result, question, question_hash):
-        """
-        Select the most appropriate response from multiple candidates.
 
-        Args:
-            result: QA pipeline result (dict or list)
-            question: The question string
-            question_hash: MD5 hash of the question
-
-        Returns:
-            str: The selected response
-        """
-        if isinstance(result, list):
-            candidates = [r['answer'] for r in result]
-            unique_candidates = list(dict.fromkeys(candidates))
-
-            if len(unique_candidates) > 1:
-                response = random.choice(unique_candidates[:2])
-            else:
-                response = unique_candidates[0]
-        else:
-            result_list = list(result) if hasattr(result, '__iter__') and not isinstance(result, dict) else result
-            if isinstance(result_list, list) and len(result_list) > 0:
-                response = result_list[0]['answer']
-            elif isinstance(result_list, dict):
-                response = result_list['answer']
-            else:
-                response = "I'm having trouble processing that question."
-
-        if question_hash not in self.response_cache:
-            self.response_cache[question_hash] = []
-        self.response_cache[question_hash].append(response)
-
-        return response
 
 ai_service = AIService()
+
 
 def translate(text, src_lang, tgt_lang):
     return ai_service.translate(text, src_lang, tgt_lang)
 
+
 def answer_question(question, context):
     return ai_service.answer_question(question, context)
+
 
 def answer_question_with_context(question, context, conversation_history=None):
     return ai_service.answer_question_with_context(question, context, conversation_history)

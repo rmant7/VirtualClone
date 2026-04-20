@@ -61,5 +61,5 @@ dependencies {
     implementation(project(":data:db"))
     implementation(project(":core:domain"))
     implementation(project(":core:common"))
-    implementation(project(":ml:gemma"))
+    implementation(project(":ml:gemma")
 }
