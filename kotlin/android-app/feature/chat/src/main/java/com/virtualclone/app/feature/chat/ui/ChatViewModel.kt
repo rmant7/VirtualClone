@@ -9,9 +9,12 @@ import com.virtualclone.app.core.domain.model.*
 import com.virtualclone.app.core.domain.repository.ModelRepository
 import com.virtualclone.app.core.domain.usecase.chat.*
 import com.virtualclone.app.feature.onboarding.mapper.ModelUiMapper
+import com.virtualclone.app.ml.whisper.WhisperTranscriber
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 private const val MAX_DOC_TOKENS = 300
@@ -20,11 +23,13 @@ private const val SAFE_MAX_TOKENS = 900 // buffer
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
+    @ApplicationContext private val context: android.content.Context,
     private val modelRepository: ModelRepository,
     private val saveChatMessage: SaveChatMessageUseCase,
     private val observeChatMessages: ObserveChatMessagesUseCase,
     private val getDocumentContext: GetDocumentContextUseCase,
-    private val clearConversation: ClearConversationUseCase
+    private val clearConversation: ClearConversationUseCase,
+    private val hfTokenProvider: com.virtualclone.app.core.domain.repository.HfTokenProvider
 ) : ViewModel() {
 
     private val tag = "ChatViewModel"
@@ -49,12 +54,105 @@ class ChatViewModel @Inject constructor(
     private val _draftMessage = MutableStateFlow("")
     val draftMessage: StateFlow<String> = _draftMessage
 
+    private var whisperTranscriber: WhisperTranscriber? = null
+
     init {
         initializeModel()
+        // initializeWhisper() // Removed from init, will be called on demand or via settings
     }
 
 
     /* ---------------- INIT ---------------- */
+
+    private fun initializeWhisper() {
+        viewModelScope.launch {
+            try {
+                val activeWhisper = modelRepository.getActiveWhisperModel() 
+                    ?: com.virtualclone.app.core.domain.model.WhisperModelsCatalog.tiny
+                
+                _uiState.value.updateTranscribing(true) // Show loading state for whisper init
+                _uiState.value.updateWhisperDownloadProgress(0f)
+                
+                val result = modelRepository.initializeWhisper(activeWhisper.id) { progress ->
+                    _uiState.value.updateWhisperDownloadProgress(progress)
+                }
+
+                when (result) {
+                    is Result.Success -> {
+                        _uiState.value.updateWhisperDownloadProgress(1.0f)
+                        
+                        val modelFile = modelRepository.getWhisperModelFile(activeWhisper.id)
+                        
+                        // Tokenizer and filters might still be in assets for now
+                        val vocabFile = File(context.filesDir, "vocab.json")
+                        if (!vocabFile.exists()) {
+                            try {
+                                context.assets.open("tokenizer/vocab.json").use { input ->
+                                    vocabFile.outputStream().use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Logger.e("Failed to copy vocab.json from assets", e, tag)
+                            }
+                        }
+
+                        val filterFile = File(context.filesDir, "filters.bin")
+                        if (!filterFile.exists()) {
+                            try {
+                                context.assets.open("filters.bin").use { input ->
+                                    filterFile.outputStream().use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                // filters.bin is optional, WhisperFeatureExtractor has fallback
+                                Logger.w("filters.bin not found in assets, using generated filters", tag)
+                            }
+                        }
+
+                        whisperTranscriber?.release()
+                        whisperTranscriber = WhisperTranscriber(
+                            modelFile = modelFile, 
+                            vocabFile = if (vocabFile.exists()) vocabFile else null,
+                            filterFile = if (filterFile.exists()) filterFile else null
+                        )
+                        whisperTranscriber?.initialize()
+                        Logger.i("Whisper initialized successfully: ${activeWhisper.id}", tag)
+                    }
+                    is Result.Error -> {
+                        Logger.e("Failed to initialize Whisper repository", result.exception, tag)
+                        val errorMessage = when {
+                            result.exception.message?.contains("401") == true -> 
+                                "Unauthorized: Please check your Hugging Face token in Settings."
+                            result.exception.message?.contains("403") == true ->
+                                "Forbidden: You may not have access to this model on Hugging Face."
+                            else -> "Failed to load Whisper model: ${result.exception.message}"
+                        }
+                        _events.emit(UiEvent.ShowError(errorMessage))
+                    }
+                    else -> Unit
+                }
+            } catch (e: Exception) {
+                Logger.e("Failed to initialize Whisper", e, tag)
+            } finally {
+                _uiState.value.updateTranscribing(false)
+                _uiState.value.updateWhisperDownloadProgress(null)
+            }
+        }
+    }
+
+    fun onMicClick() {
+        if (whisperTranscriber == null) {
+            initializeWhisper()
+        }
+    }
+
+    fun onPermissionDenied(message: String) {
+        viewModelScope.launch {
+            _events.emit(UiEvent.ShowError(message))
+        }
+    }
 
     fun initialize(conversationId: String) {
         if (initializedConversationId == conversationId) return
@@ -73,7 +171,7 @@ class ChatViewModel @Inject constructor(
 
                     Logger.i("Active model=${model.id}", tag)
 
-                    _uiState.value.setSupportsThinking(model.thinking)
+                    _uiState.value.updateSupportsThinking(model.thinking)
                     _modelName.value = uiModel.displayName
 
                     modelRepository.initializeModel(model.id)
@@ -94,7 +192,7 @@ class ChatViewModel @Inject constructor(
 
     private fun initializeConversation(conversationId: String) {
         hasRehydrated = false
-        _uiState.value.setConversation(conversationId)
+        _uiState.value.updateConversation(conversationId)
 
         viewModelScope.launch {
             observeChatMessages(conversationId).collectLatest { messages ->
@@ -126,7 +224,7 @@ class ChatViewModel @Inject constructor(
 
     private fun updateSelectedDocument(documentId: String?) {
         if (documentId == null) {
-            _uiState.value.setSelectedDocument(null, null, null)
+            _uiState.value.updateSelectedDocument(null, null, null)
             return
         }
 
@@ -148,7 +246,7 @@ class ChatViewModel @Inject constructor(
 
                     Logger.i("updateSelectedDocument(): Selected document: id=$documentId name=$name context=$context", tag)
 
-                    _uiState.value.setSelectedDocument(
+                    _uiState.value.updateSelectedDocument(
                         documentId,
                         name,
                         context
@@ -173,6 +271,44 @@ class ChatViewModel @Inject constructor(
             )
         Logger.v("Tokens remaining=$remaining", tag)
         _tokensRemaining.value = remaining
+    }
+
+    fun onAmplitudeChanged(amplitude: Int) {
+        _uiState.value.updateAmplitude(amplitude)
+    }
+
+    fun onToggleRecording(isRecording: Boolean) {
+        _uiState.value.updateRecording(isRecording)
+        if (!isRecording) {
+            _uiState.value.updateAmplitude(0)
+        }
+    }
+
+    fun onSendAudioClip(audioData: ByteArray) {
+        viewModelScope.launch {
+            _uiState.value.updateTranscribing(true)
+            _uiState.value.updateRecording(false)
+
+            try {
+                val transcriber = whisperTranscriber
+                if (transcriber == null) {
+                    _events.emit(UiEvent.ShowError("Speech recognition not ready"))
+                    return@launch
+                }
+
+                val text = transcriber.transcribe(audioData)
+                if (text.isNotBlank() && !text.startsWith("[")) {
+                    onDraftChanged(text)
+                } else if (text.startsWith("[")) {
+                    _events.emit(UiEvent.ShowMessage(text.removeSurrounding("[", "]")))
+                }
+            } catch (e: Exception) {
+                Logger.e("Transcription failed", e, tag)
+                _events.emit(UiEvent.ShowError("Failed to transcribe audio"))
+            } finally {
+                _uiState.value.updateTranscribing(false)
+            }
+        }
     }
 
     /* ---------------- SEND MESSAGE ---------------- */
@@ -382,7 +518,7 @@ class ChatViewModel @Inject constructor(
 
     fun clearSelectedDocument() {
         Logger.i("clearSelectedDocument()", tag)
-        _uiState.value.setSelectedDocument(null, null, null)
+        _uiState.value.updateSelectedDocument(null, null, null)
         recomputeTokens(_draftMessage.value)
     }
 
@@ -399,5 +535,13 @@ class ChatViewModel @Inject constructor(
 
     fun clearDraft() {
         _draftMessage.value = ""
+    }
+
+    fun onWhisperModelSelected(modelId: String) {
+        viewModelScope.launch {
+            _uiState.value.updateWhisperModelId(modelId)
+            modelRepository.setWhisperModel(modelId)
+            initializeWhisper()
+        }
     }
 }

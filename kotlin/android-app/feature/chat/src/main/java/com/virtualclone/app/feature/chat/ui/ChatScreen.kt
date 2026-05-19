@@ -21,8 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,6 +39,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.RadioButton
+import com.virtualclone.app.core.domain.model.WhisperModelsCatalog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -58,8 +64,19 @@ import com.virtualclone.app.core.common.UiEvent
 import com.virtualclone.app.core.domain.model.ChatMessage
 import com.virtualclone.app.core.domain.model.ModelPhase
 import com.virtualclone.app.feature.chat.R
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material3.CircularProgressIndicator
+import com.virtualclone.app.feature.chat.ui.components.audio.AudioAnimation
+import com.virtualclone.app.feature.chat.ui.components.audio.AudioRecorderPanel
 import com.virtualclone.app.feature.chat.ui.components.AttachmentDialog
 
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 
 @Composable
 fun ChatRoute(
@@ -74,7 +91,18 @@ fun ChatRoute(
     val modelName by viewModel.modelName.collectAsStateWithLifecycle()
     val draft by viewModel.draftMessage.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.onMicClick()
+        } else {
+            viewModel.onPermissionDenied("Audio recording permission is required for voice input.")
+        }
+    }
 
     // Initialize chat
     LaunchedEffect(conversationId) {
@@ -123,10 +151,30 @@ fun ChatRoute(
             },
             onClose = onClose,
             onCloseDocumentOnly = viewModel::clearSelectedDocument,
-            onNavigateToDocuments = onNavigateToDocuments
+            onNavigateToDocuments = onNavigateToDocuments,
+            isRecording = uiState.isRecordingAudio,
+            amplitude = uiState.currentAmplitude,
+            isTranscribing = uiState.isTranscribingAudio,
+            onAmplitudeChanged = viewModel::onAmplitudeChanged,
+            onToggleRecording = viewModel::onToggleRecording,
+            onSendAudioClip = viewModel::onSendAudioClip,
+            onMicClick = {
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+
+                if (hasPermission) {
+                    viewModel.onMicClick()
+                } else {
+                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            },
+            onWhisperModelSelected = viewModel::onWhisperModelSelected
         )
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,19 +185,38 @@ fun ChatScreen(
     draft: String,
     inputEnabled: Boolean,
     tokens: Int,
+    isRecording: Boolean,
+    amplitude: Int,
+    isTranscribing: Boolean,
     onMessageChanged: (String) -> Unit,
     onSendMessage: (String) -> Unit,
     onResetSession: () -> Unit,
     onClose: () -> Unit,
     onCloseDocumentOnly: () -> Unit,
-    onNavigateToDocuments: () -> Unit
+    onNavigateToDocuments: () -> Unit,
+    onAmplitudeChanged: (Int) -> Unit,
+    onToggleRecording: (Boolean) -> Unit,
+    onSendAudioClip: (ByteArray) -> Unit,
+    onMicClick: () -> Unit,
+    onWhisperModelSelected: (String) -> Unit
 ) {
     var showAttachmentDialog by remember { mutableStateOf(false) }
+    var showAudioRecorder by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier.fillMaxSize()
-    ) {
-        CenterAlignedTopAppBar(
+    Box(modifier = modifier.fillMaxSize()) {
+        if (isRecording) {
+            AudioAnimation(
+                bgColor = MaterialTheme.colorScheme.surface,
+                amplitude = amplitude,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            CenterAlignedTopAppBar(
             title = {
                 Text(
                     text = modelName,
@@ -162,6 +229,9 @@ fun ChatScreen(
                 actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ),
             actions = {
+                IconButton(onClick = { showSettingsDialog = true }, enabled = inputEnabled) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                }
                 IconButton(onClick = onResetSession, enabled = inputEnabled) {
                     Icon(Icons.Default.Refresh, contentDescription = "Reset")
                 }
@@ -188,26 +258,50 @@ fun ChatScreen(
             }
         }
 
-        if (uiState.selectedDocumentName != null) {
-            SelectedDocumentIndicator(
-                uiState.selectedDocumentName,
-                onCloseDocumentOnly,
-                inputEnabled
-            )
-        }
+            if (uiState.selectedDocumentName != null) {
+                SelectedDocumentIndicator(
+                    uiState.selectedDocumentName,
+                    onCloseDocumentOnly,
+                    inputEnabled
+                )
+            }
 
-        ChatInputBar(
-            message = draft,
-            enabled = inputEnabled,
-            tokens = tokens,
-            onMessageChange = {
-                onMessageChanged(it)
-            },
-            onSend = {
-                onSendMessage(draft)
-            },
-            onAttach = { showAttachmentDialog = true }
-        )
+            if (showAudioRecorder) {
+                AudioRecorderPanel(
+                    onAmplitudeChanged = onAmplitudeChanged,
+                    onSendAudioClip = {
+                        onSendAudioClip(it)
+                        showAudioRecorder = false
+                        onToggleRecording(false)
+                    },
+                    onClose = {
+                        showAudioRecorder = false
+                        onToggleRecording(false)
+                    },
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            } else {
+                ChatInputBar(
+                    message = draft,
+                    enabled = inputEnabled,
+                    tokens = tokens,
+                    isTranscribing = isTranscribing,
+                    whisperDownloadProgress = uiState.whisperDownloadProgress,
+                    onMessageChange = {
+                        onMessageChanged(it)
+                    },
+                    onSend = {
+                        onSendMessage(draft)
+                    },
+                    onAttach = { showAttachmentDialog = true },
+                    onMicClick = {
+                        onMicClick()
+                        showAudioRecorder = true
+                        onToggleRecording(true)
+                    }
+                )
+            }
+        }
     }
 
     if (showAttachmentDialog) {
@@ -218,6 +312,39 @@ fun ChatScreen(
                 onNavigateToDocuments()
             },
             onImagesClick = { showAttachmentDialog = false }
+        )
+    }
+
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            title = { Text("Speech Settings") },
+            text = {
+                Column {
+                    Text("Select Whisper Model:", style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(8.dp))
+                    WhisperModelsCatalog.all.forEach { model ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            RadioButton(
+                                selected = uiState.selectedWhisperModelId == model.id,
+                                onClick = {
+                                    onWhisperModelSelected(model.id)
+                                    showSettingsDialog = false
+                                }
+                            )
+                            Text(model.name, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettingsDialog = false }) {
+                    Text("Close")
+                }
+            }
         )
     }
 }
@@ -299,9 +426,12 @@ private fun ChatInputBar(
     message: String,
     enabled: Boolean,
     tokens: Int,
+    isTranscribing: Boolean,
+    whisperDownloadProgress: Float?,
     onMessageChange: (String) -> Unit,
     onSend: () -> Unit,
-    onAttach: () -> Unit
+    onAttach: () -> Unit,
+    onMicClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -341,11 +471,35 @@ private fun ChatInputBar(
                     }
                 },
                 trailingIcon = {
-                    IconButton(
-                        onClick = onSend,
-                        enabled = enabled && message.isNotBlank() && tokens != 0
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isTranscribing) {
+                            if (whisperDownloadProgress != null) {
+                                CircularProgressIndicator(
+                                    progress = { whisperDownloadProgress },
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .padding(12.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .padding(12.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = onMicClick, enabled = enabled) {
+                                Icon(Icons.Rounded.Mic, contentDescription = "Voice Input")
+                            }
+                        }
+                        IconButton(
+                            onClick = onSend,
+                            enabled = enabled && message.isNotBlank() && tokens != 0
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        }
                     }
                 }
             )
@@ -395,6 +549,11 @@ fun ChatItem(
 
     val alignment =
         if (chatMessage.isFromUser) Alignment.End else Alignment.Start
+
+    if (chatMessage.phase == ModelPhase.THINKING && chatMessage.text.isBlank()) {
+        // Don't show empty thinking bubbles
+        return
+    }
 
     Column(
         horizontalAlignment = alignment,

@@ -117,5 +117,6 @@ class ModelSelectionViewModel @Inject constructor(
         _uiState.update {
             it.copy(showSnackbar = true, snackbarMessage = message)
         }
+        Logger.e("ModelSelection error: $message", null, tag)
     }
 }

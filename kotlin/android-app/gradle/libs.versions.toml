@@ -17,6 +17,7 @@ roomRuntime = "2.8.0"
 roomKtx = "2.8.0"
 securityCrypto = "1.1.0-alpha06"
 tasksGenai = "0.10.29"
+tensorflowLite = "2.16.1"
 uiTextGoogleFonts = "1.9.1"
 navigationCompose = "2.9.4"
 viewModel = "2.9.3"
@@ -64,6 +65,8 @@ onnxruntime-android = { module = "com.microsoft.onnxruntime:onnxruntime-android"
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+tensorflow-lite = { group = "org.tensorflow", name = "tensorflow-lite", version.ref = "tensorflowLite" }
+tensorflow-lite-gpu = { group = "org.tensorflow", name = "tensorflow-lite-gpu", version.ref = "tensorflowLite" }
 tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "tasksGenai" }
 
 [plugins]

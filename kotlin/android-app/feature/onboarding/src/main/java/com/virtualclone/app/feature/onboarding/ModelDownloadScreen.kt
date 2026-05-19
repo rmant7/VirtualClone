@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -35,6 +36,7 @@ fun ModelDownloadRoute(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showHfTokenDialog by rememberSaveable { mutableStateOf(false) }
+    var showCustomUrlDialog by rememberSaveable { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -94,6 +96,9 @@ fun ModelDownloadRoute(
                         onResume = { viewModel.resume(it) },
                         onSettingsClick = {
                             showHfTokenDialog = true
+                        },
+                        onCustomUrlClick = {
+                            showCustomUrlDialog = true
                         }
                     )
                 }
@@ -107,6 +112,18 @@ fun ModelDownloadRoute(
                     },
                     onDismiss = {
                         showHfTokenDialog = false
+                    }
+                )
+            }
+
+            if (showCustomUrlDialog) {
+                CustomUrlDialog(
+                    onDownload = { name, url ->
+                        viewModel.downloadFromUrl(name, url)
+                        showCustomUrlDialog = false
+                    },
+                    onDismiss = {
+                        showCustomUrlDialog = false
                     }
                 )
             }
@@ -126,7 +143,8 @@ fun ModelDownloadScreen(
     onDeleteConfirmed: (String) -> Unit,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onCustomUrlClick: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteModelId by remember { mutableStateOf("") }
@@ -140,6 +158,18 @@ fun ModelDownloadScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
                 actions = {
+                    IconButton(
+                        onClick = onCustomUrlClick,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Add Custom URL"
+                        )
+                    }
                     IconButton(
                         onClick = onSettingsClick,
                         colors = IconButtonDefaults.iconButtonColors(
@@ -538,3 +568,48 @@ fun HfTokenDialog(
         }
     )
 }
+
+@Composable
+fun CustomUrlDialog(
+    onDownload: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Download Model from URL") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Model Name (e.g. whisper-tiny)") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Direct URL (.tflite, .bin, etc)") },
+                    singleLine = false,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onDownload(name.trim(), url.trim()) },
+                enabled = name.isNotBlank() && url.isNotBlank()
+            ) {
+                Text("Download")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+

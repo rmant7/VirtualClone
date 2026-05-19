@@ -5,6 +5,7 @@ import com.google.mediapipe.tasks.genai.llminference.ProgressListener
 import com.virtualclone.app.core.common.Result
 import com.virtualclone.app.core.domain.model.ChatMessage
 import com.virtualclone.app.core.domain.model.LLMModel
+import com.virtualclone.app.core.domain.model.WhisperModel
 import java.io.File
 
 interface ModelRepository {
@@ -15,6 +16,18 @@ interface ModelRepository {
     suspend fun initializeModel(modelId: String): Result<Unit>
     suspend fun closeModel(): Result<Unit>
     suspend fun resetSession(): Result<Unit>
+
+    // ─────────────────────────────────────────────────────────────
+    // Whisper
+    // ─────────────────────────────────────────────────────────────
+    suspend fun initializeWhisper(
+        modelId: String,
+        onProgress: (Float) -> Unit = {}
+    ): com.virtualclone.app.core.common.Result<Unit>
+
+    suspend fun getActiveWhisperModel(): WhisperModel?
+    suspend fun getAvailableWhisperModels(): List<WhisperModel>
+    suspend fun setWhisperModel(modelId: String): com.virtualclone.app.core.common.Result<Unit>
 
     // ─────────────────────────────────────────────────────────────
     // Active model
@@ -31,6 +44,7 @@ interface ModelRepository {
     // File / Validation
     // ─────────────────────────────────────────────────────────────
     fun getModelLocalFile(modelId: String): File
+    fun getWhisperModelFile(modelId: String): File
     fun modelExists(modelId: String): Boolean
 
     // ─────────────────────────────────────────────────────────────

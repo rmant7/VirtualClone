@@ -11,4 +11,7 @@ class StartModelDownloadUseCase @Inject constructor(
     @IoDispatcher dispatcher: CoroutineDispatcher
 ) : BaseUseCase(dispatcher) {
     suspend operator fun invoke(modelId: String) = runOnDispatcher { repo.start(modelId) }
+    
+    suspend fun fromUrl(modelId: String, url: String, needsAuth: Boolean = false) = 
+        runOnDispatcher { repo.startWithUrl(modelId, url, needsAuth) }
 }

@@ -81,4 +81,5 @@ dependencies {
     implementation(project(":data:pdf"))
     implementation(project(":ml:onnx"))
     implementation(project(":ml:gemma"))
+    implementation(project(":ml:whisper"))
 }

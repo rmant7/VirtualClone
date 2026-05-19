@@ -39,23 +39,53 @@ class ModelDownloadRepositoryImpl @Inject constructor(
     override suspend fun start(modelId: String): Result<Unit> {
         return try {
             val model = resolveModel(modelId)
+            startWithUrl(model.id, model.url, model.needsAuth)
+        } catch (e: Exception) {
+            Log.e(tag, "start() failed", e)
+            Result.Error(e)
+        }
+    }
 
-            val authToken = requireTokenIfNeeded(model)
+    override suspend fun startWithUrl(
+        modelId: String,
+        url: String,
+        needsAuth: Boolean
+    ): Result<Unit> {
+        return try {
             startForegroundServiceSafely()
 
-            val fileName = model.url.substringAfterLast("/")
+            val fileName = url.substringAfterLast("/")
+            val authToken = if (needsAuth) hfTokenProvider.getToken() else null
+
+            // Ensure a record exists in the DB so it appears in the UI immediately
+            val existing = dao.getByName(modelId)
+            if (existing == null) {
+                dao.upsert(
+                    ModelDownloadEntity(
+                        modelName = modelId,
+                        url = url,
+                        fileName = fileName,
+                        totalBytes = -1L // Will be updated by refreshModelSizeIfNeeded or the downloader
+                    )
+                )
+            }
 
             downloadManager.startOrResume(
-                modelName = model.id,
-                url = model.url,
+                modelName = modelId,
+                url = url,
                 fileName = fileName,
-                needsAuth = model.needsAuth,
+                needsAuth = needsAuth,
                 authToken = authToken
             )
 
+            // Try to fetch size in background if unknown
+            if (existing?.totalBytes == null || existing.totalBytes <= 0) {
+                refreshModelSizeWithParams(modelId, url, needsAuth)
+            }
+
             Result.Success(Unit)
         } catch (e: Exception) {
-            Log.e(tag, "start() failed", e)
+            Log.e(tag, "startWithUrl() failed", e)
             Result.Error(e)
         }
     }
@@ -100,15 +130,14 @@ class ModelDownloadRepositoryImpl @Inject constructor(
 
     // ─────────────────────────────────────────────
 
-    private suspend fun resolveModel(modelId: String) =
-        modelRepository.getAvailableModels()
-            .let { result ->
-                if (result !is Result.Success)
-                    throw IllegalStateException("Failed to load model catalog")
+    private suspend fun resolveModel(modelId: String): LLMModel {
+        val catalogResult = modelRepository.getAvailableModels()
+        if (catalogResult !is Result.Success)
+            throw IllegalStateException("Failed to load model catalog")
 
-                result.data.firstOrNull { it.id == modelId }
-                    ?: throw IllegalArgumentException("Unknown modelId=$modelId")
-            }
+        return catalogResult.data.firstOrNull { it.id == modelId }
+            ?: throw IllegalArgumentException("Unknown modelId=$modelId")
+    }
 
     private suspend fun requireTokenIfNeeded(model: LLMModel): String? {
         if (!model.needsAuth) return null
@@ -128,46 +157,49 @@ class ModelDownloadRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun refreshModelSizeIfNeeded(modelId: String) =
-        withContext(Dispatchers.IO) {
-
-            Log.i(tag, "refreshModelSizeIfNeeded(): model=$modelId")
-
-            val existing = dao.getByName(modelId)
-            Log.i(tag, "existing.totalBytes=${existing?.totalBytes}")
-
-            if (existing?.totalBytes != null && existing.totalBytes > 0) {
-                return@withContext
-            }
-
-            val model = resolveModel(modelId)
-
-            val token = if (model.needsAuth) hfTokenProvider.getToken() else null
-            Log.i(tag, "needsAuth=${model.needsAuth}, hfToken=${token != null}")
-
-            if (model.needsAuth && token == null) return@withContext
-
-            val size = try {
-                downloadManager.fetchRemoteFileSize(
-                    url = model.url,
-                    authToken = token
-                )
-            } catch (e: Exception) {
-                Log.e(tag, "HEAD request failed", e)
-                return@withContext
-            }
-
-            if (size <= 0) return@withContext
-
-            dao.upsert(
-                ModelDownloadEntity(
-                    modelName = model.id,
-                    url = model.url,
-                    fileName = model.url.substringAfterLast("/"),
-                    totalBytes = size
-                )
-            )
-
-            Log.i(tag, "Persisted size=$size for model=${model.id}")
+    override suspend fun refreshModelSizeIfNeeded(modelId: String) {
+        val model = try {
+            resolveModel(modelId)
+        } catch (e: Exception) {
+            // If not in catalog, we might not have the URL here. 
+            // Custom URLs are handled during startWithUrl.
+            return
         }
+        refreshModelSizeWithParams(model.id, model.url, model.needsAuth)
+    }
+
+    private suspend fun refreshModelSizeWithParams(
+        modelId: String,
+        url: String,
+        needsAuth: Boolean
+    ) = withContext(Dispatchers.IO) {
+        Log.i(tag, "refreshModelSizeWithParams(): model=$modelId")
+
+        val existing = dao.getByName(modelId)
+        if (existing?.totalBytes != null && existing.totalBytes > 0) {
+            return@withContext
+        }
+
+        val token = if (needsAuth) hfTokenProvider.getToken() else null
+        if (needsAuth && token == null) return@withContext
+
+        val size = try {
+            downloadManager.fetchRemoteFileSize(url = url, authToken = token)
+        } catch (e: Exception) {
+            Log.e(tag, "HEAD request failed for $url", e)
+            return@withContext
+        }
+
+        if (size <= 0) return@withContext
+
+        dao.upsert(
+            ModelDownloadEntity(
+                modelName = modelId,
+                url = url,
+                fileName = url.substringAfterLast("/"),
+                totalBytes = size
+            )
+        )
+        Log.i(tag, "Persisted size=$size for model=$modelId")
+    }
 }

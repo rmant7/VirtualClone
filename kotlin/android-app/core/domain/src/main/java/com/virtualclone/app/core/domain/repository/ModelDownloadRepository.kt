@@ -6,6 +6,7 @@ import com.virtualclone.app.core.common.Result
 
 interface ModelDownloadRepository {
     suspend fun start(modelId: String): Result<Unit>
+    suspend fun startWithUrl(modelId: String, url: String, needsAuth: Boolean = false): Result<Unit>
     suspend fun pause(modelId: String): Result<Unit>
     suspend fun resume(modelId: String): Result<Unit>
     suspend fun cancel(modelId: String): Result<Unit>

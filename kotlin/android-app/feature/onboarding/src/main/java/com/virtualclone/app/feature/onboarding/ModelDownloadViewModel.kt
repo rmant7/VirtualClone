@@ -267,6 +267,24 @@ class ModelDownloadViewModel @Inject constructor(
         }
     }
 
+    fun downloadFromUrl(modelId: String, url: String) = viewModelScope.launch {
+        if (!requireInternetOrNotify()) return@launch
+        
+        // We assume custom URLs might need auth if they are from Hugging Face
+        val needsAuth = url.contains("huggingface.co")
+        
+        when (val result = startModelDownload.fromUrl(modelId, url, needsAuth)) {
+            is Result.Success -> {
+                _events.emit(UiEvent.ShowMessage("Download started for $modelId"))
+                refreshAllVisibleModelMetadata()
+            }
+            is Result.Error -> {
+                _events.emit(UiEvent.ShowError("Failed to start download: ${result.exception.message}"))
+            }
+            else -> Unit
+        }
+    }
+
     fun pause(modelId: String) = viewModelScope.launch {
         pauseModelDownload(modelId)
     }

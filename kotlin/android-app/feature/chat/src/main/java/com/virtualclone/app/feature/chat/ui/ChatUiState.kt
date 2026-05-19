@@ -33,16 +33,39 @@ class ChatUiState(
     var documentContext by mutableStateOf(documentContext)
         private set
 
+    var selectedWhisperModelId by mutableStateOf("whisper_tiny_en")
+        private set
+
+    fun updateWhisperModelId(id: String) {
+        selectedWhisperModelId = id
+    }
+
+    var isRecordingAudio by mutableStateOf(false)
+        private set
+
+    var currentAmplitude by mutableStateOf(0)
+        private set
+
+    var isTranscribingAudio by mutableStateOf(false)
+        private set
+
+    var whisperDownloadProgress by mutableStateOf<Float?>(null)
+        private set
+
+    fun updateWhisperDownloadProgress(progress: Float?) {
+        whisperDownloadProgress = progress
+    }
+
     /* ---------------- Config ---------------- */
 
-    fun setSupportsThinking(value: Boolean) {
+    fun updateSupportsThinking(value: Boolean) {
         supportsThinking = value
         Logger.i("supportsThinking=$value", tag)
     }
 
     /* ---------------- Conversation ---------------- */
 
-    fun setConversation(id: String) {
+    fun updateConversation(id: String) {
         if (conversationId == id) return
         Logger.i("setConversation: $id", tag)
         conversationId = id
@@ -58,7 +81,7 @@ class ChatUiState(
         currentModelMessageId = null
     }
 
-    fun setSelectedDocument(
+    fun updateSelectedDocument(
         id: String?,
         name: String?,
         context: String? = null
@@ -71,6 +94,18 @@ class ChatUiState(
 
     fun hasActiveModelMessage(): Boolean {
         return currentModelMessageId != null
+    }
+
+    fun updateRecording(recording: Boolean) {
+        isRecordingAudio = recording
+    }
+
+    fun updateAmplitude(amplitude: Int) {
+        currentAmplitude = amplitude
+    }
+
+    fun updateTranscribing(transcribing: Boolean) {
+        isTranscribingAudio = transcribing
     }
 
     /* ---------------- Messages ---------------- */
